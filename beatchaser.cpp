@@ -5,9 +5,8 @@
 #include "render.h"
 #include "global.h"
 
-Beatchaser::Beatchaser(CRGB *leds, int trigger_in)
+Beatchaser::Beatchaser(CRGB *leds)
         : Effect(leds) {
-    trigger = trigger_in;
     for (int i=0; i<LED_LENGTH;i++) {
         bl[i]=0;
     }
@@ -69,8 +68,17 @@ palette2 = CRGBPalette16(
     );
 }
 
+
+int Beatchaser::nLEDS() {
+    return 60;
+}
+
+/*void Beatchaser::loadEffect(int variation) {
+    this->variation = variation;
+}*/
+
 void Beatchaser::handleNoteOn(int channel, int note, int velocity) {
-    if (trigger == 1 && channel == LOCAL_CHANNEL){
+    if (variation == 1 && channel == LOCAL_CHANNEL){
         bl[0] = 255;
     }
 }
@@ -100,7 +108,7 @@ void Beatchaser::handleFrameUpdate() {
         } else {
             bl[ii] = 0;
         }
-        if (trigger == 0) {
+        if (variation == 0) {
             leds[h-(ii+1)] = ColorFromPalette(palette, bl[ii]);
         } else {
             leds[h-(ii+1)] = ColorFromPalette(palette2, bl[ii]);
@@ -112,7 +120,7 @@ void Beatchaser::handleFrameUpdate() {
 }
 
 void Beatchaser::handleClock(uint pulse_number) {
-    if (trigger==0){
+    if (variation==0){
         if (!running) return;
         if (pulse_number == 0) {
         

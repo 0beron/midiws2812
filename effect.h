@@ -12,7 +12,8 @@ public:
         : leds(leds) {}
     
     virtual ~Effect() = default;
-
+    virtual void loadEffect(int variation);
+    virtual int nLEDS();
     virtual void handleNoteOn(int channel, int note, int velocity);
     virtual void handleNoteOff(int channel, int note, int velocity);
     virtual void handlePolyAT(int channel, int note, int value);
@@ -24,6 +25,7 @@ public:
 
 protected:
     CRGB *leds;
+    int variation;
 };
 
 #endif

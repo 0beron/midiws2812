@@ -1,6 +1,12 @@
 
 #include "effect.h"
 
+void Effect::loadEffect(int variation) {
+    this->variation = variation;
+}
+int  Effect::nLEDS() {
+    return 60;
+}
 void Effect::handleNoteOn(int channel, int note, int velocity) {}
 void Effect::handleNoteOff(int channel, int note, int velocity) {}
 void Effect::handleCC(int channel, int cc, int value) {}

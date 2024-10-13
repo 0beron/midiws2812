@@ -13,6 +13,12 @@ Streb::Streb(CRGB *leds)
     }
 }
 
+
+
+int Streb::nLEDS() {
+    return 32;
+}
+
 void Streb::handleNoteOn(int channel, int note, int velocity) {
     int off;
     if (note >= 50 && note < 110 && channel > 0 && channel < 3) {
@@ -56,9 +62,23 @@ void Streb::handleNoteOn(int channel, int note, int velocity) {
 }
 
 void Streb::handleNoteOff(int channel, int note, int velocity) {
+     int off;
      if (note > 50 && note < 110 && channel > 0 && channel < 3) {
         //leds[note-30] = CRGB(0, 0, 0);
-        particles[109-note].yvel = -2;
+        if (channel == 1) {
+            off = chord_offset;
+        } else {
+            off = bass_offset;
+        }        
+        int mnote = (109+off)-note;
+        if (mnote > 59) {
+            mnote = 59;
+        }
+        if (mnote < 0) {
+            mnote = 0;
+        }
+     
+        particles[mnote].yvel = -2;
     }
     if (channel == 0) {
         running--;

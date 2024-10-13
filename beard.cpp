@@ -13,6 +13,11 @@ Beard::Beard(CRGB *leds)
     }
 }
 
+
+int Beard::nLEDS() {
+    return 120;
+}
+
 void Beard::handleNoteOn(int channel, int note, int velocity) {
     if (note > 30 && note < 90) {
         //leds[note-30] = CRGB(0, 0, 50);

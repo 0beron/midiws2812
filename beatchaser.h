@@ -12,8 +12,10 @@ public:
     bool running = false;
     uint8_t bl[LED_LENGTH];
     int trigger = 0;
-    Beatchaser(CRGB *leds, int trigger_in);
+    Beatchaser(CRGB *leds);
 
+    int nLEDS() override;
+    //void loadEffect(int variation) override;
     void handleNoteOn(int channel, int note, int velocity) override;
     void handleNoteOff(int channel, int note, int velocity) override;
     

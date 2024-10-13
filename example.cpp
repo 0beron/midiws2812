@@ -20,6 +20,7 @@
 #define UART_TX_PIN 8
 #define UART_RX_PIN 9
 #define BUTTON_PIN 17
+#define MAXLEDS 60
 //#define GPIO_FUNC_UART 2
 
 
@@ -42,8 +43,11 @@ unsigned int curr_effect = 0;
 int brightness = 255;
 
 Effect *effects[NEFFECTS];
+int vars[NEFFECTS];
 
 // function declarations
+void config();
+
 void midi_rx(message* msg, Effect* eff);
 void midi_tx(unsigned char);
 void handle_midi(message* msg, Effect* eff);
@@ -52,28 +56,20 @@ int global_midi(message* msg);
 void note_on(unsigned char channel, unsigned char note, unsigned char vel);
 void note_off(unsigned char channel, unsigned char note, unsigned char vel);
 
+void loadEffect(Effect &eff, int variation);
+
 int read_flash();
 void write_flash(int value);
 
-CRGB leds[LED_LENGTH];
+CRGB leds[MAXLEDS];
 
 bool in_sysex = false;
 bool flsh = false;
 bool menu = false;
 int bld=0;
-
+CLEDController *control = nullptr;
 //printf("%d", someint);
 
-
-/*WS2812 ledStrip = WS2812(
-        LED_PIN,            // Data line is connected to pin 0. (GP0)
-        LED_LENGTH,         // Strip is 6 LEDs long.
-        pio0,               // Use PIO 0 for creating the state machine.
-        0,                  // Index of the state machine that will be created for controlling the LED strip
-                            // You can have 4 state machines per PIO-Block up to 8 overall.
-                            // See Chapter 3 in: https://datasheets.raspberrypi.org/rp2040/rp2040-datasheet.pdf
-        WS2812::FORMAT_GRB  // Pixel format used by the LED strip
-    );*/
 
 int main()
 {
@@ -83,11 +79,100 @@ int main()
     uint debounce = 100;
     unsigned int framecounter = 0;
 
-    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, LED_LENGTH);
-
     Effect *eff;
     message cmsg;
 
+    config();
+
+    control = &FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAXLEDS);
+    gpio_put(BLED, 1);
+        
+    // Effects:
+    effects[0] = new Pianoroll(leds);
+    effects[1] = new Keys(leds);
+    effects[2] = new Particles(leds);
+    effects[3] = new Beatchaser(leds);
+    effects[4] = new Bargraph(leds);
+    effects[5] = new Streb(leds);
+    effects[6] = new Beatchaser(leds);
+
+    vars[0] = 0;
+    vars[1] = 0;
+    vars[2] = 0;
+    vars[3] = 0;
+    vars[4] = 0;
+    vars[5] = 0;
+    vars[6] = 1;
+    
+    curr_effect = (unsigned int)read_flash();
+
+    if (curr_effect >= NEFFECTS) {
+        curr_effect = 0;
+    }
+
+    FastLED.setMaxPowerInVoltsAndMilliamps(5, 1500);
+
+    eff = effects[curr_effect];
+    loadEffect(*eff, vars[curr_effect]);
+    //leds[0] = CRGB::Green;
+    //ledStrip.fill(0);
+    
+    //FastLED.show();
+    cmsg.rstat = 0;
+    while (true) {
+
+        midi_rx(&cmsg,eff);
+          
+        global_trigger = global_midi(&cmsg);
+        if (debounce == 0 && (global_trigger == -2 ||
+             !gpio_get(BUTTON_PIN))) {
+            /* Any note on the control channel or a press
+               of the button on GPIO will cycle effects, and
+               write the settings to flash.
+            */
+            debounce = 30;
+            curr_effect++;
+            if (curr_effect >= NEFFECTS) {
+                curr_effect = 0;
+            }
+            eff = effects[curr_effect];
+            loadEffect(*eff, vars[curr_effect]);
+            write_flash(curr_effect);
+        }
+        if (global_trigger >= 0) {
+            /* A program change on the control channel
+              picks an effect but does not persist the change.*/
+            debounce = 30;
+            curr_effect = global_trigger;
+            eff = effects[curr_effect];
+            loadEffect(*eff, vars[curr_effect]);
+        }
+
+        handle_midi(&cmsg, eff);
+
+        framecounter++;
+        if (framecounter == 25000) {
+            
+            eff->handleFrameUpdate();
+            framecounter = 0;
+
+            if (debounce > 0)  {
+                debounce--;
+                for (int ii=0; ii<LED_LENGTH; ii++) {
+                    leds[ii] = 0;
+                }
+                for (int ii=0; ii<curr_effect+1; ii++) {
+                    leds[ii] = CRGB(0,128,128);
+                }
+            }
+            FastLED.show();
+        }
+    }
+
+    return 0;
+}
+
+void config () {
     stdio_init_all();
     setup_default_uart();
     uart_init(UART_ID, BAUD_RATE);
@@ -107,70 +192,11 @@ int main()
 
 	// disable cr/lf conversion on Tx
 	uart_set_translate_crlf(UART_ID, false);
+}
 
-    // 0. Initialize LED strip
-    // std::shared_ptr<WS2812> ledPtr = std::make_shared<WS2812>(ledStrip);
-    
-    // Effects:
-    effects[0] = new Pianoroll(leds);
-    effects[1] = new Keys(leds);
-    effects[2] = new Particles(leds);
-    effects[3] = new Beatchaser(leds,0);
-    effects[4] = new Bargraph(leds);
-    effects[5] = new Streb(leds);
-    effects[6] = new Beatchaser(leds,1);
-
-    curr_effect = (unsigned int)read_flash();
-
-    if (curr_effect >= NEFFECTS) {
-        curr_effect = 0;
-    }
-
-    FastLED.setMaxPowerInVoltsAndMilliamps(5, 1500);
-
-    eff = effects[curr_effect];
-    //leds[0] = CRGB::Green;
-    //ledStrip.fill(0);
-    cmsg.rstat = 0;
-    while (true) {
-
-        midi_rx(&cmsg,eff);
-          
-        global_trigger = global_midi(&cmsg);
-        if (debounce == 0 && (global_trigger == 1 ||
-             !gpio_get(BUTTON_PIN))) {
-            debounce = 30;
-            curr_effect++;
-            if (curr_effect >= NEFFECTS) {
-                curr_effect = 0;
-            }
-            eff = effects[curr_effect];
-            write_flash(curr_effect);
-        }
-
-        handle_midi(&cmsg, eff);
-
-        framecounter++;
-        if (framecounter == 25000) {
-            
-            eff->handleFrameUpdate();           
-            framecounter = 0;
-
-            if (debounce > 0)  {
-                debounce--;
-                for (int ii=0; ii<LED_LENGTH; ii++) {
-                    leds[ii] = 0;
-                }
-                for (int ii=0; ii<curr_effect+1; ii++) {
-                    leds[ii] = CRGB(0,128,128);
-                }
-            } 
-            
-            FastLED.show();
-        }
-    }
-
-    return 0;
+void loadEffect(Effect &eff, int variation) {
+    eff.loadEffect(variation);
+    control->setLeds(leds, eff.nLEDS());
 }
 
 void midi_rx(message* msg, Effect* eff) {
@@ -244,13 +270,26 @@ int global_midi(message* msg) {
     
     if (msg->rstat == 3) {
         channel = msg->status & 0xF;
-        if (stat == 0x90 && channel == GLOBAL_CHANNEL && msg->data2 > 0) {
-            return 1;
-            gpio_put(BLED, bld);
-            bld = 1-bld;
+        if (channel == GLOBAL_CHANNEL) {
+            if (stat == 0x90 && msg->data2 > 0) {
+                // Any note on
+                // Cycle Effects
+                return -2;
+            }
+        }
+    } else if (msg->rstat == 2) {
+        channel = msg->status & 0xF;
+        if (channel == GLOBAL_CHANNEL) {
+            if (stat == 0xC0) {
+                // PC on global channel,
+                // Pick effect by index if in range.
+                if ((int)msg->data1 < NEFFECTS) {
+                    return (int)msg->data1;
+                }
+            }
         }
     }
-    return 0;
+    return -1;
 }
 
 

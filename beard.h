@@ -10,6 +10,8 @@ public:
 
     Beard(CRGB *leds);
 
+    int nLEDS() override;
+    void loadEffect(int variation) override;
     void handleNoteOn(int channel, int note, int velocity) override;
     void handleNoteOff(int channel, int note, int velocity) override;
     void handlePolyAT(int channel, int note, int value) override;

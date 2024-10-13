@@ -17,6 +17,7 @@ public:
     int bass_offset = 0;
     int chord_offset = 0;
 
+    int nLEDS() override;
     void handleNoteOn(int channel, int note, int velocity) override;
     void handleNoteOff(int channel, int note, int velocity) override;
     void handleCC(int channel, int cc, int velocity) override;
