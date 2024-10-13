@@ -47,12 +47,7 @@ void Streb::handleNoteOn(int channel, int note, int velocity) {
         }
     }
 
-    if (channel == 4) {
-        chord_offset = (64-note);
-    }
-    if (channel == 5) {
-        bass_offset = (64-note);
-    }
+    
     
     if (channel == 0) {
         running++;
@@ -98,10 +93,6 @@ void Streb::handleCC(int channel, int cc, int value) {
                 particles[i].y = (v * RES/2)/128;
             }   
         }
-    }
-    if (cc == 91) {
-        brightness = value;
-        FastLED.setBrightness((uint8_t)value);
     }
 }
 

@@ -13,6 +13,7 @@ Pianoroll::Pianoroll(CRGB *leds)
 void Pianoroll::handleNoteOn(int channel, int note, int velocity) {
     running++;
     lastnote = note;
+    printf("piano roll note on\n");
 }
 
 void Pianoroll::handleNoteOff(int channel, int note, int velocity) {

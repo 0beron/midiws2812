@@ -18,6 +18,7 @@ public:
     virtual void handleNoteOff(int channel, int note, int velocity);
     virtual void handlePolyAT(int channel, int note, int value);
     virtual void handleCC(int channel, int cc, int value);
+    virtual void handleProgramChange(int channel, int value);
     virtual void handleClock(uint pulse_number);
     virtual void handleFrameUpdate();
     virtual void handleStop();

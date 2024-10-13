@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <cmath>
+
 #include "pico/stdlib.h"
 //#include "WS2812.hpp"
 #include "hardware/uart.h"
 #include "hardware/gpio.h"
-#include "hardware/flash.h"
+
 #include "particles.h"
 #include "beatchaser.h"
 #include "bargraph.h"
@@ -13,6 +14,7 @@
 #include "keys.h"
 #include "FastLED.h"
 #include "global.h"
+#include "globaleffect.h"
 
 #define LED_PIN 4
 #define UART_ID uart1
@@ -20,14 +22,10 @@
 #define UART_TX_PIN 8
 #define UART_RX_PIN 9
 #define BUTTON_PIN 17
-#define MAXLEDS 60
+#define MAXLEDS 180
 //#define GPIO_FUNC_UART 2
 
-
-#define FLASH_TARGET_OFFSET (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
-
 #define MIDI_NOTE_ON 0x90
-#define NEFFECTS 7
 
 typedef struct _message {
     unsigned char rstat;
@@ -38,9 +36,6 @@ typedef struct _message {
 
 uint clock_counter = 0;
 unsigned int count = 0;
-unsigned int curr_effect = 0;
-
-int brightness = 255;
 
 Effect *effects[NEFFECTS];
 int vars[NEFFECTS];
@@ -58,9 +53,6 @@ void note_off(unsigned char channel, unsigned char note, unsigned char vel);
 
 void loadEffect(Effect &eff, int variation);
 
-int read_flash();
-void write_flash(int value);
-
 CRGB leds[MAXLEDS];
 
 bool in_sysex = false;
@@ -68,7 +60,20 @@ bool flsh = false;
 bool menu = false;
 int bld=0;
 CLEDController *control = nullptr;
-//printf("%d", someint);
+
+void debug(int val, CRGB col) {
+    FastLED.clear();
+    int i = 0;
+    while (val > 0) {
+        if (val & 0x1) {
+            leds[i] = col;
+        }
+        val >>= 1;
+        i++;
+    }
+    FastLED.show();
+    sleep_ms(1500);
+}
 
 
 int main()
@@ -80,13 +85,15 @@ int main()
     unsigned int framecounter = 0;
 
     Effect *eff;
-    message cmsg;
+    
+    message cmsg, gmsg;
 
     config();
 
     control = &FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAXLEDS);
-    gpio_put(BLED, 1);
-        
+
+    GlobalEffect *global_effect = new GlobalEffect(leds);
+
     // Effects:
     effects[0] = new Pianoroll(leds);
     effects[1] = new Keys(leds);
@@ -104,67 +111,62 @@ int main()
     vars[5] = 0;
     vars[6] = 1;
     
-    curr_effect = (unsigned int)read_flash();
+    printf("EFF ADDR %x\n", effects[0]);
+    printf("EFF ADDR %x\n", effects[1]);
+    printf("EFF ADDR %x\n", effects[2]);
+    printf("EFF ADDR %x\n", effects[3]);
+    printf("EFF ADDR %x\n", effects[4]);
+    printf("EFF ADDR %x\n", effects[5]);
+    printf("EFF ADDR %x\n", effects[6]);
 
-    if (curr_effect >= NEFFECTS) {
-        curr_effect = 0;
-    }
+    //curr_effect = (unsigned int)read_flash();
 
     FastLED.setMaxPowerInVoltsAndMilliamps(5, 1500);
 
-    eff = effects[curr_effect];
-    loadEffect(*eff, vars[curr_effect]);
-    //leds[0] = CRGB::Green;
-    //ledStrip.fill(0);
+    eff = effects[global_effect->settings[EFFECT]];
+    loadEffect(*eff, vars[global_effect->settings[EFFECT]]);
     
-    //FastLED.show();
     cmsg.rstat = 0;
     while (true) {
 
         midi_rx(&cmsg,eff);
           
-        global_trigger = global_midi(&cmsg);
-        if (debounce == 0 && (global_trigger == -2 ||
-             !gpio_get(BUTTON_PIN))) {
-            /* Any note on the control channel or a press
-               of the button on GPIO will cycle effects, and
-               write the settings to flash.
-            */
-            debounce = 30;
-            curr_effect++;
-            if (curr_effect >= NEFFECTS) {
-                curr_effect = 0;
-            }
-            eff = effects[curr_effect];
-            loadEffect(*eff, vars[curr_effect]);
-            write_flash(curr_effect);
+        if (global_effect->debounce == 0 && !gpio_get(BUTTON_PIN)) {
+            global_effect->handleNoteOn(GLOBAL_CHANNEL, 64, 100);
+            global_effect->change_timer = 200;
         }
-        if (global_trigger >= 0) {
-            /* A program change on the control channel
-              picks an effect but does not persist the change.*/
-            debounce = 30;
-            curr_effect = global_trigger;
-            eff = effects[curr_effect];
-            loadEffect(*eff, vars[curr_effect]);
+
+        gmsg.rstat = cmsg.rstat;
+        gmsg.status = cmsg.status;
+        gmsg.data1 = cmsg.data1;
+        gmsg.data2 = cmsg.data2;
+        handle_midi(&gmsg, global_effect);
+
+        if (global_effect->settings[EFFECT] != global_effect->prev_settings[EFFECT]) {
+            eff = effects[global_effect->settings[EFFECT]];
+            printf("Loading effect %d\n",global_effect->settings[EFFECT]);
+            loadEffect(*eff, vars[global_effect->settings[EFFECT]]);
+
+            printf("EFF 0 ADDR %x\n", effects[0]);
+            printf("IDX %d\n", global_effect->settings[EFFECT]);
+            printf("EFF thesjkhsdfj ADDR %x\n", effects[global_effect->settings[EFFECT]]);
+            global_effect->copySettings();
         }
 
         handle_midi(&cmsg, eff);
 
         framecounter++;
-        if (framecounter == 25000) {
+        if (framecounter == 15000) {
             
             eff->handleFrameUpdate();
+            global_effect->handleFrameUpdate();
             framecounter = 0;
 
-            if (debounce > 0)  {
-                debounce--;
-                for (int ii=0; ii<LED_LENGTH; ii++) {
-                    leds[ii] = 0;
-                }
-                for (int ii=0; ii<curr_effect+1; ii++) {
-                    leds[ii] = CRGB(0,128,128);
-                }
-            }
+            /* for(int i = 59; i>0; i--) {
+                leds[i*3] = leds[i];
+                leds[i] = CRGB::Black;
+            } */
+
             FastLED.show();
         }
     }
@@ -196,7 +198,7 @@ void config () {
 
 void loadEffect(Effect &eff, int variation) {
     eff.loadEffect(variation);
-    control->setLeds(leds, eff.nLEDS());
+    //control->setLeds(leds, eff.nLEDS());
 }
 
 void midi_rx(message* msg, Effect* eff) {
@@ -227,12 +229,12 @@ void midi_rx(message* msg, Effect* eff) {
                 }
                 eff->handleClock(clock_counter);
                 
-                if (clock_counter == 0) {
+                /*if (clock_counter == 0) {
                     gpio_put(BLED, 1);
                 }
                 if (clock_counter == 11) {
                     gpio_put(BLED, 0);
-                }
+                }*/
 
                 
             } else if (mc == 0xF0) {
@@ -259,39 +261,9 @@ void midi_rx(message* msg, Effect* eff) {
                 }
             }
         }
+   
     }
 }
-
-int global_midi(message* msg) {
-    unsigned char channel;
-    unsigned char stat;
-
-    stat = msg->status & 0xF0;
-    
-    if (msg->rstat == 3) {
-        channel = msg->status & 0xF;
-        if (channel == GLOBAL_CHANNEL) {
-            if (stat == 0x90 && msg->data2 > 0) {
-                // Any note on
-                // Cycle Effects
-                return -2;
-            }
-        }
-    } else if (msg->rstat == 2) {
-        channel = msg->status & 0xF;
-        if (channel == GLOBAL_CHANNEL) {
-            if (stat == 0xC0) {
-                // PC on global channel,
-                // Pick effect by index if in range.
-                if ((int)msg->data1 < NEFFECTS) {
-                    return (int)msg->data1;
-                }
-            }
-        }
-    }
-    return -1;
-}
-
 
 void handle_midi(message* msg, Effect *eff) {
     unsigned char channel;
@@ -300,7 +272,10 @@ void handle_midi(message* msg, Effect *eff) {
     stat = msg->status & 0xF0;
     
     if (msg->rstat == 3) {
+        printf("%02X %02X %02X\n", msg->status, msg->data1, msg->data2);
         
+        printf("EFF ADDR %x\n", eff);
+
         channel = msg->status & 0xF;
         if (stat == 0x90) {
             if (msg->data2 == 0) {
@@ -321,7 +296,8 @@ void handle_midi(message* msg, Effect *eff) {
     } else if (msg->rstat == 2) {
         channel = msg->status & 0xF;
         if (stat == 0xC0) {
-            // PC
+            printf("%02X %02X\n", msg->status, msg->data1);
+            eff->handleProgramChange(channel, msg->data1);
             msg->rstat = 1;
         } else if (stat == 0xD0) {
             // Channel Pressure
@@ -333,62 +309,3 @@ void handle_midi(message* msg, Effect *eff) {
 }
 
 
-int find_empty_page() {
-    int *p, page, addr, lastval, newval;
-    int first_empty_page = -1;
-    for(page = 0; page < FLASH_SECTOR_SIZE/FLASH_PAGE_SIZE; page++){
-        addr = XIP_BASE + FLASH_TARGET_OFFSET + (page * FLASH_PAGE_SIZE);
-        p = (int *)addr;
-        /*Serial.print("First four bytes of page " + String(page, DEC) );
-        Serial.print("( at 0x" + (String(int(p), HEX)) + ") = ");
-        Serial.println(*p);*/
-        if( *p == -1 && first_empty_page < 0){
-            first_empty_page = page;
-        //Serial.println("First empty page is #" + String(first_empty_page, DEC));
-        }
-    }
-    return first_empty_page;
-}
-
-int read_flash() {
-    int first_empty_page = -1;
-
-    first_empty_page = find_empty_page();
-
-    if (first_empty_page < 0) {
-        first_empty_page = (FLASH_SECTOR_SIZE/FLASH_PAGE_SIZE)-1;
-    } else if (first_empty_page == 0) {
-        return 0;
-    }
-
-    int *p, addr, value;
-
-    // Compute the memory-mapped address, remembering to include the offset for RAM
-    addr = XIP_BASE +  FLASH_TARGET_OFFSET + ((first_empty_page-1)*FLASH_PAGE_SIZE);
-    p = (int *)addr; // Place an int pointer at our memory-mapped address
-    value = *p; // Store the value at this address into a variable for later use
-    return value;
-}
-
-
-void write_flash(int value) {
-    int buf[FLASH_PAGE_SIZE/sizeof(int)];  // One page buffer of ints
-    int *p, page, addr, lastval, newval;
-    int first_empty_page = -1;
-
-    first_empty_page = find_empty_page();
-    *buf = value;
-
-    if (first_empty_page < 0){
-        // Serial.println("Full sector, erasing...");
-        uint32_t ints = save_and_disable_interrupts();
-        flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
-        first_empty_page = 0;
-        restore_interrupts (ints);
-    }
-    //Serial.println("Writing to page #" + String(first_empty_page, DEC));
-    uint32_t ints = save_and_disable_interrupts();
-    flash_range_program(FLASH_TARGET_OFFSET + (first_empty_page*FLASH_PAGE_SIZE), (uint8_t *)buf, FLASH_PAGE_SIZE);
-    restore_interrupts (ints);
-
-}
