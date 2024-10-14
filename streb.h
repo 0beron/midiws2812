@@ -12,10 +12,9 @@ public:
     
     uint8_t running = 0;
     uint8_t lastPrs = 0;
-    int lastnote =0;
+    int lastnote = 0;
     uint32_t framediv = 0;
-    int bass_offset = 0;
-    int chord_offset = 0;
+    
 
     int nLEDS() override;
     void handleNoteOn(int channel, int note, int velocity) override;

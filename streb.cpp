@@ -4,6 +4,7 @@
 #include "particle.h"
 #include "render.h"
 #include "global.h"
+#include "pico/stdlib.h"
 
 Streb::Streb(CRGB *leds)
         : Effect(leds) {
@@ -13,8 +14,6 @@ Streb::Streb(CRGB *leds)
     }
 }
 
-
-
 int Streb::nLEDS() {
     return 32;
 }
@@ -23,11 +22,12 @@ void Streb::handleNoteOn(int channel, int note, int velocity) {
     int off;
     if (note >= 50 && note < 110 && channel > 0 && channel < 3) {
         if (channel == 1) {
-            off = chord_offset;
+            off = settings[CHORD_OFFSET];
         } else {
-            off = bass_offset;
+            off = settings[BASS_OFFSET];
         }
         int mnote = (109+off)-note;
+        printf("Streb note on, offset is %d", off);
         if (mnote > 59) {
             mnote = 59;
         }
@@ -61,9 +61,9 @@ void Streb::handleNoteOff(int channel, int note, int velocity) {
      if (note > 50 && note < 110 && channel > 0 && channel < 3) {
         //leds[note-30] = CRGB(0, 0, 0);
         if (channel == 1) {
-            off = chord_offset;
+            off = settings[CHORD_OFFSET];
         } else {
-            off = bass_offset;
+            off = settings[BASS_OFFSET];
         }        
         int mnote = (109+off)-note;
         if (mnote > 59) {

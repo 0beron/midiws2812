@@ -6,6 +6,8 @@
 
 #define FLASH_TARGET_OFFSET (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
 
+int settings[NSETTINGS];
+
 static void vclamp(int *val, int min, int max);
 static void read_flash2(int *buffer, int count);
 static void write_flash(int *buffer, int count);

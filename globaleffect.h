@@ -8,7 +8,7 @@ class GlobalEffect : public Effect {
 public:
     GlobalEffect(CRGB *leds);
 
-    int settings[NSETTINGS];
+    //int settings[NSETTINGS];
     int prev_settings[NSETTINGS];
     
     int debounce = 0;

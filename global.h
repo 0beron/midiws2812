@@ -14,8 +14,8 @@
 
 #ifndef GLOBAL_H
 #define GLOBAL_H
-extern int brightness;
 
+extern int settings[NSETTINGS];
 
 void debug(int val, CRGB col);
 

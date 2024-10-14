@@ -110,21 +110,11 @@ int main()
     vars[4] = 0;
     vars[5] = 0;
     vars[6] = 1;
-    
-    printf("EFF ADDR %x\n", effects[0]);
-    printf("EFF ADDR %x\n", effects[1]);
-    printf("EFF ADDR %x\n", effects[2]);
-    printf("EFF ADDR %x\n", effects[3]);
-    printf("EFF ADDR %x\n", effects[4]);
-    printf("EFF ADDR %x\n", effects[5]);
-    printf("EFF ADDR %x\n", effects[6]);
-
-    //curr_effect = (unsigned int)read_flash();
-
+ 
     FastLED.setMaxPowerInVoltsAndMilliamps(5, 1500);
 
-    eff = effects[global_effect->settings[EFFECT]];
-    loadEffect(*eff, vars[global_effect->settings[EFFECT]]);
+    eff = effects[settings[EFFECT]];
+    loadEffect(*eff, vars[settings[EFFECT]]);
     
     cmsg.rstat = 0;
     while (true) {
@@ -142,14 +132,9 @@ int main()
         gmsg.data2 = cmsg.data2;
         handle_midi(&gmsg, global_effect);
 
-        if (global_effect->settings[EFFECT] != global_effect->prev_settings[EFFECT]) {
-            eff = effects[global_effect->settings[EFFECT]];
-            printf("Loading effect %d\n",global_effect->settings[EFFECT]);
-            loadEffect(*eff, vars[global_effect->settings[EFFECT]]);
-
-            printf("EFF 0 ADDR %x\n", effects[0]);
-            printf("IDX %d\n", global_effect->settings[EFFECT]);
-            printf("EFF thesjkhsdfj ADDR %x\n", effects[global_effect->settings[EFFECT]]);
+        if (settings[EFFECT] != global_effect->prev_settings[EFFECT]) {
+            eff = effects[settings[EFFECT]];
+            loadEffect(*eff, vars[settings[EFFECT]]);
             global_effect->copySettings();
         }
 
