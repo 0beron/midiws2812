@@ -18,17 +18,17 @@ void Bargraph::handleNoteOff(int channel, int note, int velocity) {
 void Bargraph::handleCC(int channel, int cc, int value) {
     CRGB col;
     if (cc == 2) {
-        int v = value / 2;
-        if (v > LED_LENGTH) {
-            v = LED_LENGTH;
+        int v = (int)((value / 127.0f) * glb_maxleds);
+        if (v > glb_maxleds) {
+            v = glb_maxleds;
         }
         int s,e;
         if (channel==3) {
             s = 0;
             e = v;
         } else {
-            e = LED_LENGTH;
-            s = LED_LENGTH-v;
+            e = glb_maxleds;
+            s = glb_maxleds-v;
         }
         
         for (int i=s; i<e; i++) {
@@ -42,10 +42,10 @@ void Bargraph::handleCC(int channel, int cc, int value) {
 
         if (channel==3) {
             s = v;
-            e = LED_LENGTH;
+            e = glb_maxleds;
         } else {
             s = 0;
-            e = LED_LENGTH - v;
+            e = glb_maxleds - v;
         }
         
         for (int i=s; i<e; i++) {
@@ -57,15 +57,13 @@ void Bargraph::handleCC(int channel, int cc, int value) {
             }
         }
 
-        if ((value%2 == 1) && v < (LED_LENGTH)) {
+        if ((value%2 == 1) && v < (glb_maxleds)) {
             if (channel == 3) {
                 leds[v].green = 30;
             } else {
-                leds[LED_LENGTH-(v+1)].red = 30;
+                leds[glb_maxleds-(v+1)].red = 30;
             }
         }
-
-
     }
 
 }

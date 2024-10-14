@@ -12,7 +12,7 @@ public:
     uint8_t lastPrs = 0;
     int lastnote =0;
     uint32_t framediv = 0;
-    uint8_t bl[LED_LENGTH];
+    uint8_t bl[MAXLEDS];
     Pianoroll(CRGB *leds);
 
     void handleNoteOn(int channel, int note, int velocity) override;

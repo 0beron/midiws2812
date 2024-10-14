@@ -36,7 +36,7 @@ void GlobalEffect::copySettings() {
 
 void GlobalEffect::handleNoteOn(int channel, int note, int velocity) {
     
-    if (channel == GLOBAL_CHANNEL) {
+    if (channel == glb_control_channel) {
         printf("Manual Cycle\n");
         // Manual effect cycle. Show index number for 30 frames
         debounce = 30;
@@ -77,7 +77,7 @@ void GlobalEffect::handleCC(int channel, int cc, int value) {
 }
 
 void GlobalEffect::handleProgramChange(int channel, int value) {
-    if (channel == GLOBAL_CHANNEL && value < NEFFECTS) {
+    if (channel == glb_control_channel && value < NEFFECTS) {
         // Program change sets an effect by index, and does not
         // display anything or trigger a flash write.
         copySettings();
@@ -107,7 +107,7 @@ void GlobalEffect::handleFrameUpdate() {
         // Show the index number of the effect
         FastLED.clear();
         debounce--;
-        for (int ii=0; ii<LED_LENGTH; ii++) {
+        for (int ii=0; ii<glb_maxleds; ii++) {
             leds[ii] = 0;
         }
         for (int ii=0; ii<settings[EFFECT]+1; ii++) {

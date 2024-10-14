@@ -7,7 +7,7 @@
 
 Beatchaser::Beatchaser(CRGB *leds)
         : Effect(leds) {
-    for (int i=0; i<LED_LENGTH;i++) {
+    for (int i=0; i<MAXLEDS;i++) {
         bl[i]=0;
     }
    /* palette = CRGBPalette16(
@@ -68,17 +68,12 @@ palette2 = CRGBPalette16(
     );
 }
 
-
 int Beatchaser::nLEDS() {
-    return 60;
+    return glb_maxleds;
 }
 
-/*void Beatchaser::loadEffect(int variation) {
-    this->variation = variation;
-}*/
-
 void Beatchaser::handleNoteOn(int channel, int note, int velocity) {
-    if (variation == 1 && channel == LOCAL_CHANNEL){
+    if (variation == 1 && channel == glb_note_channel) {
         bl[0] = 255;
     }
 }
@@ -98,13 +93,16 @@ void Beatchaser::handleStop() {
 
 void Beatchaser::handleFrameUpdate() {
     //FastLED.clear();
-   int h = (LED_LENGTH/2);
+   int h = (glb_maxleds/2);
 
     for (int ii=h-1; ii>=0; ii--) {
         if (ii>0 && bl[ii] < bl[ii-1]) {
             bl[ii] = bl[ii-1];
         } else if (bl[ii] > 3) {
             bl[ii] -= 3;
+            if (glb_maxleds > 60) {
+                bl[ii] -= 3;
+            }
         } else {
             bl[ii] = 0;
         }

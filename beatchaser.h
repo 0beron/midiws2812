@@ -10,7 +10,7 @@ public:
     CRGBPalette16 palette;
     CRGBPalette16 palette2;
     bool running = false;
-    uint8_t bl[LED_LENGTH];
+    uint8_t bl[MAXLEDS];
     int trigger = 0;
     Beatchaser(CRGB *leds);
 

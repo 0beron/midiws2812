@@ -2,7 +2,6 @@
 #include <cmath>
 
 #include "pico/stdlib.h"
-//#include "WS2812.hpp"
 #include "hardware/uart.h"
 #include "hardware/gpio.h"
 
@@ -22,10 +21,9 @@
 #define UART_TX_PIN 8
 #define UART_RX_PIN 9
 #define BUTTON_PIN 17
-#define MAXLEDS 180
-//#define GPIO_FUNC_UART 2
 
-#define MIDI_NOTE_ON 0x90
+#define JUMPER_PIN1 21
+#define JUMPER_PIN2 20
 
 typedef struct _message {
     unsigned char rstat;
@@ -46,20 +44,21 @@ void config();
 void midi_rx(message* msg, Effect* eff);
 void midi_tx(unsigned char);
 void handle_midi(message* msg, Effect* eff);
-int global_midi(message* msg);
-
-void note_on(unsigned char channel, unsigned char note, unsigned char vel);
-void note_off(unsigned char channel, unsigned char note, unsigned char vel);
-
 void loadEffect(Effect &eff, int variation);
 
 CRGB leds[MAXLEDS];
 
 bool in_sysex = false;
 bool flsh = false;
-bool menu = false;
+
 int bld=0;
 CLEDController *control = nullptr;
+
+/* Global variables (extern in global.h) */
+int glb_jumper_val = 0;
+int glb_maxleds = 60;
+int glb_control_channel = 0XE;
+int glb_note_channel = 0XD;
 
 void debug(int val, CRGB col) {
     FastLED.clear();
@@ -122,7 +121,7 @@ int main()
         midi_rx(&cmsg,eff);
           
         if (global_effect->debounce == 0 && !gpio_get(BUTTON_PIN)) {
-            global_effect->handleNoteOn(GLOBAL_CHANNEL, 64, 100);
+            global_effect->handleNoteOn(glb_control_channel, 64, 100);
             global_effect->change_timer = 200;
         }
 
@@ -147,11 +146,6 @@ int main()
             global_effect->handleFrameUpdate();
             framecounter = 0;
 
-            /* for(int i = 59; i>0; i--) {
-                leds[i*3] = leds[i];
-                leds[i] = CRGB::Black;
-            } */
-
             FastLED.show();
         }
     }
@@ -162,6 +156,9 @@ int main()
 void config () {
     stdio_init_all();
     setup_default_uart();
+
+    printf("\n\n----------------------------------\n", glb_jumper_val);
+
     uart_init(UART_ID, BAUD_RATE);
 
 	// set UART Tx and Rx pins
@@ -179,11 +176,37 @@ void config () {
 
 	// disable cr/lf conversion on Tx
 	uart_set_translate_crlf(UART_ID, false);
+
+    gpio_init(JUMPER_PIN1);
+    gpio_set_dir(JUMPER_PIN1, GPIO_IN);
+    gpio_pull_up(JUMPER_PIN1);
+    gpio_init(JUMPER_PIN2);
+    gpio_set_dir(JUMPER_PIN2, GPIO_IN);
+    gpio_pull_up(JUMPER_PIN2);
+
+    if (!gpio_get(JUMPER_PIN1)) {
+        glb_jumper_val += 1;
+    }
+    if (!gpio_get(JUMPER_PIN2)) {
+        glb_jumper_val += 2;
+    }
+    
+    if (glb_jumper_val == 1) {
+        // Beard string
+        glb_control_channel = 0xC;
+        glb_note_channel = 0xB;
+        glb_maxleds = 180;
+    } else {
+        // WX or plank
+        glb_control_channel = 0xE;
+        glb_note_channel = 0xD;
+        glb_maxleds = 60;
+    }
 }
 
 void loadEffect(Effect &eff, int variation) {
     eff.loadEffect(variation);
-    //control->setLeds(leds, eff.nLEDS());
+    control->setLeds(leds, eff.nLEDS());
 }
 
 void midi_rx(message* msg, Effect* eff) {
@@ -213,15 +236,7 @@ void midi_rx(message* msg, Effect* eff) {
                     clock_counter = 0;
                 }
                 eff->handleClock(clock_counter);
-                
-                /*if (clock_counter == 0) {
-                    gpio_put(BLED, 1);
-                }
-                if (clock_counter == 11) {
-                    gpio_put(BLED, 0);
-                }*/
 
-                
             } else if (mc == 0xF0) {
                 in_sysex = true;
             } else if (mc == 0xF7) {
@@ -259,8 +274,6 @@ void handle_midi(message* msg, Effect *eff) {
     if (msg->rstat == 3) {
         printf("%02X %02X %02X\n", msg->status, msg->data1, msg->data2);
         
-        printf("EFF ADDR %x\n", eff);
-
         channel = msg->status & 0xF;
         if (stat == 0x90) {
             if (msg->data2 == 0) {

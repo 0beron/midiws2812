@@ -1,11 +1,12 @@
 
 #include "effect.h"
+#include "global.h"
 
 void Effect::loadEffect(int variation) {
     this->variation = variation;
 }
 int  Effect::nLEDS() {
-    return 60;
+    return glb_maxleds;
 }
 void Effect::handleNoteOn(int channel, int note, int velocity) {}
 void Effect::handleNoteOff(int channel, int note, int velocity) {}

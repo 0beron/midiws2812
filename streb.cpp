@@ -35,7 +35,7 @@ void Streb::handleNoteOn(int channel, int note, int velocity) {
             mnote = 0;
         }
         Particle *p = &particles[mnote];
-        p->x = ((RES/LED_LENGTH)*(mnote));
+        p->x = ((RES/glb_maxleds)*(mnote));
         p->y = 1;
         p->yvel = 0;
         if (channel == 0) {

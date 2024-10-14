@@ -16,7 +16,7 @@ void Keys::handleNoteOn(int channel, int note, int velocity) {
     if (note > 30 && note < 90) {
         //leds[note-30] = CRGB(0, 0, 50);
         Particle *p = &particles[note-30];
-        p->x = (RES/LED_LENGTH)*(note-30);
+        p->x = (RES/glb_maxleds)*(note-30);
         p->y = RES/4;
         p->col = CRGB(0,0,255);
     }
