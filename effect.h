@@ -5,6 +5,8 @@
 #include <memory>
 #include "FastLED.h"
 
+
+
 class Effect {
 public:
 

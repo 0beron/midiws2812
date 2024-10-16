@@ -8,10 +8,19 @@
 
 int settings[NSETTINGS];
 
+static void print_settings();
 static void vclamp(int *val, int min, int max);
 static void read_flash2(int *buffer, int count);
 static void write_flash(int *buffer, int count);
 static int find_empty_page();
+
+void print_settings() {
+    char buffer[256];  // Buffer to hold the formatted string
+    sprintf(buffer, "Effect: %d\nBrightness: %d\nChord Offset: %d\nBass Offset: %d\ninterpolator: %d\n",
+                settings[0], settings[1], settings[2], settings[3], settings[4]);
+
+    printf("%s", buffer);
+}
 
 GlobalEffect::GlobalEffect(CRGB *leds)
         : Effect(leds) {
@@ -21,8 +30,10 @@ GlobalEffect::GlobalEffect(CRGB *leds)
     vclamp(&(settings[BRIGHTNESS]), 12, 255);
     vclamp(&(settings[CHORD_OFFSET]), -63, 63);
     vclamp(&(settings[BASS_OFFSET]), -63, 63);
+    vclamp(&(settings[INTERPOLATOR]), 0, 7);
 
-    printf("Brightness at start %d\n", settings[BRIGHTNESS]);
+    printf("Settings at start:\n");
+    print_settings();
 
     FastLED.setBrightness((uint8_t)settings[BRIGHTNESS]);
 }
@@ -37,7 +48,6 @@ void GlobalEffect::copySettings() {
 void GlobalEffect::handleNoteOn(int channel, int note, int velocity) {
     
     if (channel == glb_control_channel) {
-        printf("Manual Cycle\n");
         // Manual effect cycle. Show index number for 30 frames
         debounce = 30;
         // Start the timer to write flash.
@@ -63,16 +73,17 @@ void GlobalEffect::handleNoteOn(int channel, int note, int velocity) {
         copySettings();
         settings[BASS_OFFSET] = (64-note);
     }
-
 }
 
 void GlobalEffect::handleCC(int channel, int cc, int value) {
-    if (cc == 91) {
+    if (cc == 91 && (channel < 4 || channel == glb_control_channel)) {
         // CC 91 sets Brightness
         change_timer = CHANGE_FRAMES;
         settings[BRIGHTNESS] = 2*value;
         if (settings[BRIGHTNESS] > 255) { settings[BRIGHTNESS] = 255;}
-        FastLED.setBrightness((uint8_t)value);
+        FastLED.setBrightness((uint8_t)settings[BRIGHTNESS]);
+    } else if (cc == 92 && channel == glb_control_channel) {
+        settings[INTERPOLATOR] = value/16;
     }
 }
 
@@ -95,11 +106,7 @@ void GlobalEffect::handleFrameUpdate() {
         if (change_timer == 1) {
             printf("FLASH WRITE....\n");
             write_flash(settings, 4);
-            char buffer[128];  // Buffer to hold the formatted string
-            sprintf(buffer, "Value 1: %d\nValue 2: %d\nValue 3: %d\nValue 4: %d\n",
-                settings[0], settings[1], settings[2], settings[3]);
-
-            printf("%s", buffer);
+            
         }
     }
 
@@ -167,8 +174,8 @@ void read_flash2(int *buffer, int count) {
     
 
     char msg[128];  // Buffer to hold the formatted string
-    sprintf(msg, "Value 1: %d\nValue 2: %d\nValue 3: %d\nValue 4: %d\n",
-        buffer[0], buffer[1], buffer[2], buffer[3]);
+    sprintf(msg, "Effect: %d\nBrightness: %d\nChord Offset: %d\nBass Offset: %d\ninterpolator: %d\n",
+        buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
 
     printf("%s", msg);
 

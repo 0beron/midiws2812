@@ -15,6 +15,7 @@
 #include "FastLED.h"
 #include "global.h"
 #include "globaleffect.h"
+#include "beard.h"
 
 #define LED_PIN 4
 #define UART_ID uart1
@@ -36,23 +37,24 @@ typedef struct _message {
 uint clock_counter = 0;
 unsigned int count = 0;
 
+Beard *beard;
 Effect *effects[NEFFECTS];
 int vars[NEFFECTS];
 
 // function declarations
 void config();
-
 void midi_rx(message* msg, Effect* eff);
 void midi_tx(unsigned char);
 void handle_midi(message* msg, Effect* eff);
 void loadEffect(Effect &eff, int variation);
+void interpolate();
 
+// Leds buffer for effects to write to
 CRGB leds[MAXLEDS];
+// Leds buffer to display. Can be a straight copy or re-mapped from leds.
+CRGB leds_out[MAXLEDS];
 
 bool in_sysex = false;
-bool flsh = false;
-
-int bld=0;
 CLEDController *control = nullptr;
 
 /* Global variables (extern in global.h) */
@@ -66,7 +68,7 @@ void debug(int val, CRGB col) {
     int i = 0;
     while (val > 0) {
         if (val & 0x1) {
-            leds[i] = col;
+            leds_out[i] = col;
         }
         val >>= 1;
         i++;
@@ -78,24 +80,20 @@ void debug(int val, CRGB col) {
 
 int main()
 {
-    unsigned char midichar = 0;
-    unsigned char midilast = 0;
-    int global_trigger;
-    uint debounce = 100;
     unsigned int framecounter = 0;
     unsigned int framesdone = 0;
-
     absolute_time_t tframe = get_absolute_time();
 
-    Effect *eff;
-    
+    Effect *eff;   
     message cmsg, gmsg;
 
     config();
 
-    control = &FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAXLEDS);
+    control = &FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds_out, MAXLEDS);
 
     GlobalEffect *global_effect = new GlobalEffect(leds);
+
+    beard = new Beard(leds);
 
     // Effects:
     effects[0] = new Pianoroll(leds);
@@ -119,6 +117,8 @@ int main()
     vars[8] = 1;
  
     FastLED.setMaxPowerInVoltsAndMilliamps(5, 1500);
+
+    FastLED.setBrightness((uint8_t)settings[BRIGHTNESS]);
 
     eff = effects[settings[EFFECT]];
     loadEffect(*eff, vars[settings[EFFECT]]);
@@ -156,15 +156,14 @@ int main()
                 printf("FPS: %d\n", framesdone);
                 framesdone = 0;
                 tframe = tnow;
-
-                
-
-
+                printf("interpolation: %d",settings[INTERPOLATOR]);
             }
 
             eff->handleFrameUpdate();
             global_effect->handleFrameUpdate();
             framecounter = 0;
+
+            interpolate();
 
             FastLED.show();
         }
@@ -226,7 +225,35 @@ void config () {
 
 void loadEffect(Effect &eff, int variation) {
     eff.loadEffect(variation);
-    control->setLeds(leds, eff.nLEDS());
+    control->setLeds(leds_out, eff.nLEDS());
+    FastLED.setBrightness((uint8_t)settings[BRIGHTNESS]);
+}
+
+void interpolate() {
+
+    switch(settings[INTERPOLATOR]) {
+        case 1:
+            for(int i=0; i < glb_maxleds; i++) {
+                float u = beard->uvs[i].u;
+                int ii = (int)(glb_maxleds*u);
+                leds_out[i] = leds[ii];
+            }
+            break;
+        case 2:
+            for(int i=0; i < glb_maxleds; i++) {
+                float u = beard->uvs[i].v;
+                int ii = (int)(glb_maxleds*u);
+                leds_out[i] = leds[ii];
+            }
+            break;
+        case 0:
+        default:
+            for(int i=0; i < glb_maxleds; i++) {
+               leds_out [i] = leds[i];
+            }
+    }
+
+
 }
 
 void midi_rx(message* msg, Effect* eff) {
