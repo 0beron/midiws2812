@@ -9,7 +9,7 @@
 Beard::Beard(CRGB *leds)
         : Effect(leds) {
     for(int i=0; i<60; i++) {
-        particles[i] = Particle(0,0,0,0,0);
+        particles[i] = Particle(0,0,0,0,0,4);
     }
 }
 

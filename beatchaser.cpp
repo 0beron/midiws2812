@@ -73,7 +73,7 @@ int Beatchaser::nLEDS() {
 }
 
 void Beatchaser::handleNoteOn(int channel, int note, int velocity) {
-    if (variation == 1 && channel == glb_note_channel) {
+    if (variation > 0 && channel == glb_note_channel) {
         bl[0] = 255;
     }
 }
@@ -108,8 +108,10 @@ void Beatchaser::handleFrameUpdate() {
         }
         if (variation == 0) {
             leds[h-(ii+1)] = ColorFromPalette(palette, bl[ii]);
-        } else {
+        } else if (variation == 1) {
             leds[h-(ii+1)] = ColorFromPalette(palette2, bl[ii]);
+        } else if (variation == 2) {
+            leds[h-(ii+1)] = ColorFromPalette(palette, bl[0]);
         }
         leds[ii+h] = leds[h-(ii+1)];
     }

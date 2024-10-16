@@ -8,16 +8,20 @@
 class Particles : public Effect {
 public:
 
-    int num = 0;
-    int chance = 10;
+    int num = 10;
+    int chance = 30;
+    int fall = 4;
+    int colour_scheme = 0;
+    CRGB colour;
 
-    Particle p[10];
+    Particle p[50];
 
     Particles(CRGB *leds)
         : Effect(leds) {
 
         }
 
+    void loadEffect(int variation);
     void handleNoteOn(int channel, int note, int velocity) override;
     void handleNoteOff(int channel, int note, int velocity) override;
 

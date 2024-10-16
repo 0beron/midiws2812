@@ -1,5 +1,5 @@
 #define BLED 25
-#define NEFFECTS 7
+#define NEFFECTS 9
 #define NSETTINGS 4
 
 #define MAXLEDS 180

@@ -2,6 +2,7 @@
 #include <cmath>
 
 #include "pico/stdlib.h"
+#include "pico/time.h"
 #include "hardware/uart.h"
 #include "hardware/gpio.h"
 
@@ -82,6 +83,9 @@ int main()
     int global_trigger;
     uint debounce = 100;
     unsigned int framecounter = 0;
+    unsigned int framesdone = 0;
+
+    absolute_time_t tframe = get_absolute_time();
 
     Effect *eff;
     
@@ -101,6 +105,8 @@ int main()
     effects[4] = new Bargraph(leds);
     effects[5] = new Streb(leds);
     effects[6] = new Beatchaser(leds);
+    effects[7] = effects[6];
+    effects[8] = effects[2];
 
     vars[0] = 0;
     vars[1] = 0;
@@ -109,6 +115,8 @@ int main()
     vars[4] = 0;
     vars[5] = 0;
     vars[6] = 1;
+    vars[7] = 2;
+    vars[8] = 1;
  
     FastLED.setMaxPowerInVoltsAndMilliamps(5, 1500);
 
@@ -141,7 +149,19 @@ int main()
 
         framecounter++;
         if (framecounter == 15000) {
-            
+            framesdone++;
+
+            absolute_time_t tnow = get_absolute_time();
+            if (absolute_time_diff_us(tframe, tnow) > 1000000) {
+                printf("FPS: %d\n", framesdone);
+                framesdone = 0;
+                tframe = tnow;
+
+                
+
+
+            }
+
             eff->handleFrameUpdate();
             global_effect->handleFrameUpdate();
             framecounter = 0;
